@@ -117,23 +117,24 @@ NULL
 #                                                        sheet = "assay.component.endpoint")
 # 
 # library(dplyr)
-# end_point_info_v3 <- end_point_info_v3_assay %>% 
+# end_point_info_v3 <- end_point_info_v3_assay %>%
 #   left_join(end_point_info_v3_assay.component) %>%
 #   left_join(end_point_info_v3_assay.component.endpoint)
 # 
-# gene_stuff <- readxl::read_xlsx("../toxCast_Data/INVITRODB_V3_3_SUMMARY/gene_target_information_invitrodb_v3_3.xlsx")
+# gene_stuff <- readxl::read_xlsx("../toxCast_Data/INVITRODB_V3_3_SUMMARY/gene_target_information_invitrodb_v3_3.xlsx") %>%
+#   select(-organism_id)
 # 
-# end_point_info_v3 <- end_point_info_v3 %>% 
+# end_point_info_v3 <- end_point_info_v3 %>%
 #   left_join(gene_stuff)
 # 
 # end_point_info <- end_point_info_v3
 # 
-# rm(gene_stuff, 
+# rm(gene_stuff,
 #    end_point_info_v3,
 #    end_point_info_v3_assay,
-#    end_point_info_v3_assay.component.endpoint, 
+#    end_point_info_v3_assay.component.endpoint,
 #    end_point_info_v3_assay.component)
-# 
+
 # save(end_point_info, tox_chemicals, ToxCast_ACC, 
 #      file = "R/sysdata.rda", compress = "xz")
 # 
