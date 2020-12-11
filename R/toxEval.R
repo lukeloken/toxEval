@@ -109,6 +109,8 @@ NULL
 # 
 # saveRDS(ACC, "ACC_v33.rds")
 # ToxCast_ACCv3 <- readRDS("ACC_v33.rds")
+
+
 # end_point_info_v3_assay <- readxl::read_xlsx("../toxCast_Data/INVITRODB_V3_3_SUMMARY/assay_annotation_information_invitrodb_v3_3.xlsx",
 #                                         sheet = "assay")
 # end_point_info_v3_assay.component <- readxl::read_xlsx("../toxCast_Data/INVITRODB_V3_3_SUMMARY/assay_annotation_information_invitrodb_v3_3.xlsx",
@@ -135,8 +137,100 @@ NULL
 #    end_point_info_v3_assay.component.endpoint,
 #    end_point_info_v3_assay.component)
 
+
+
+
+# Loken edits
+
+library(dplyr)
+library(tidyr)
+library(openxlsx)
+
+end_point_info_v3_assay <- readxl::read_xlsx("../toxCast_Data/INVITRODB_V3_3_SUMMARY/assay_annotation_information_invitrodb_v3_3.xlsx", sheet = "assay")
+
+end_point_info_v3_assay.component <- readxl::read_xlsx("../toxCast_Data/INVITRODB_V3_3_SUMMARY/assay_annotation_information_invitrodb_v3_3.xlsx",
+                                                       sheet = "assay.component")
+end_point_info_v3_assay.component.endpoint <- readxl::read_xlsx("../toxCast_Data/INVITRODB_V3_3_SUMMARY/assay_annotation_information_invitrodb_v3_3.xlsx",
+                                                                sheet = "assay.component.endpoint")
+
+
+end_point_info_v3 <- end_point_info_v3_assay %>%
+  left_join(end_point_info_v3_assay.component, by = "aid") %>%
+  left_join(end_point_info_v3_assay.component.endpoint, by = "acid")
+
+gene_stuff <- readxl::read_xlsx("../toxCast_Data/INVITRODB_V3_3_SUMMARY/gene_target_information_invitrodb_v3_3.xlsx")
+
+# Generate table for EPA review. Look at endpoint-gene linkages and assess validity
+gene_stuff_out <- gene_stuff %>%
+  select(gene_symbol, gene_name,
+         aeid, aenm) %>%
+  distinct() %>%
+  arrange(gene_symbol, aenm) %>%
+  left_join(end_point_info_v3, by = c("aeid", "aenm" = "assay_component_endpoint_name")) %>%
+  select(gene_symbol, gene_name,
+         aeid, aenm, signal_direction, analysis_direction, assay_component_endpoint_desc)
+
+# write.csv(gene_stuff_out, "genes_endpoints_for_review.csv", row.names = FALSE)
+gene_reviewed <- read.csv(file.path("original_raw_data", "genes_endpoints_for_review_DLV_corrected 11-09-2020.csv")) %>%
+  select(-assay_component_endpoint_desc, -gene_symbol_original, 
+         -signal_direction, -analysis_direction, -aenm)
+
+# gene_reviewed[grepl("\\|", gene_reviewed$gene_name),]
+
+gene_reviewed$gene_symbol_DLV[which(gene_reviewed$gene_symbol_DLV == "Cyp3a23/3a1")] <- "CYP3A23|CYP3A1"
+
+gene_reviewed <- gene_reviewed %>%
+  tidyr::separate_rows(gene_symbol_DLV, sep = "\\|") %>%
+  mutate(gene_symbol_DLV = toupper(gsub(" ", "", gene_symbol_DLV))) 
+
+gene_reviewed$gene_name [which(gene_reviewed$gene_symbol_DLV == "JUN")] <- "jun proto-oncogene"
+gene_reviewed$gene_name [which(gene_reviewed$gene_symbol_DLV == "FOS")] <- "FBJ murine osteosarcoma viral oncogene homolog"
+gene_reviewed$gene_name [which(gene_reviewed$gene_symbol_DLV == "THRA")] <- "thyroid hormone receptor, alpha"
+gene_reviewed$gene_name [which(gene_reviewed$gene_symbol_DLV == "THRB")] <- "thyroid hormone receptor, beta"
+gene_reviewed$gene_name [which(gene_reviewed$gene_symbol_DLV == "CYP3A23")] <- "cytochrome P450, family 3, subfamily a, polypeptide 23"
+gene_reviewed$gene_name [which(gene_reviewed$gene_symbol_DLV == "CYP3A1")] <- "cytochrome P450, family 3, subfamily a, polypeptide 1"
+
+gene_reviewed_out <- gene_stuff %>%
+  select(-gene_symbol, -gene_name, -official_full_name,
+         -entrez_gene_id, -official_symbol, -uniprot_accession_number, -organism_id) %>%
+  full_join(gene_reviewed) %>%
+  rename(gene_symbol = gene_symbol_DLV)
+
+
+
+# Merge gene with rest of endpoint table,
+# Collapse gene table to "one row = one endpoint"
+# endpoints with multiple genes will have |'s in gene columns.
+gene_reviewed_out2 <- gene_reviewed_out %>%
+    group_by(aeid, aenm) %>%
+    summarize(across(everything(), function(x) paste(unique(x[which(x != "" & x != "NA" & !is.na(x) )]),
+                                                     collapse = "|")), .groups = "drop") %>%
+    rename(intended_target_gene_id = gene_id,
+           intended_target_gene_name = gene_name,
+           intended_target_gene_symbol = gene_symbol) %>%
+  distinct()
+
+
+end_point_info_v3 <- end_point_info_v3 %>%
+  left_join(gene_reviewed_out2, by = c("aeid", "assay_component_endpoint_name" = "aenm"))
+
+#
+# assay_table <- unique(end_point_info[c("assay_source_name", "assay_source_long_name")])
+#
+# end_point_info_v3$assay_source_name <- gsub("\\_.*" , "", end_point_info_v3$assay_name)
+#
+# end_point_info_v3$assay_source_name[grepl("NHEERL", end_point_info_v3$assay_source_name)] <-
+#   paste0("NHEERL_", (gsub("\\_.*" , "",
+#        gsub("NHEERL_", "", end_point_info_v3$assay_name[grepl("NHEERL", end_point_info_v3$assay_source_name)]))))
+#
+# end_point_info <- end_point_info_v3
+# rm(end_point_info_v3, end_point_info_v3_assay, end_point_info_v3_assay.component,
+#    end_point_info_v3_assay.component.endpoint, gene_stuff, gene_stuff2)
+#
+# 
 # save(end_point_info, tox_chemicals, ToxCast_ACC, 
 #      file = "R/sysdata.rda", compress = "xz")
+# 
 # 
 # ep_33 <- names(end_point_info_v3)
 # ep_32 <- names(toxEval::end_point_info)
