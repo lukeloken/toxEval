@@ -214,6 +214,8 @@ gene_reviewed_out2 <- gene_reviewed_out %>%
 end_point_info_v3 <- end_point_info_v3 %>%
   left_join(gene_reviewed_out2, by = c("aeid", "assay_component_endpoint_name" = "aenm"))
 
+# End of Loken edits
+
 #
 # assay_table <- unique(end_point_info[c("assay_source_name", "assay_source_long_name")])
 #
